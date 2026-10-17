@@ -2258,6 +2258,68 @@ h1 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.module-access-simulation {
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid rgba(247, 200, 67, 0.3);
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(8, 21, 37, 0.9), rgba(2, 5, 11, 0.78));
+}
+
+.module-access-simulation.is-locked {
+  border-color: rgba(255, 107, 107, 0.58);
+}
+
+.module-access-simulation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.module-access-simulation-header h2 {
+  margin-bottom: 0;
+  font-size: clamp(1.25rem, 4vw, 1.6rem);
+}
+
+.module-access-simulation.is-locked .status-pill {
+  border-color: rgba(255, 107, 107, 0.58);
+  color: #ffb4b4;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.module-access-simulation-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.module-access-toggle {
+  min-height: 44px;
+  border: 1px solid rgba(247, 200, 67, 0.48);
+  border-radius: 14px;
+  padding: 10px 14px;
+  color: var(--black);
+  background: var(--gold);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.module-access-simulation.is-locked .module-access-toggle {
+  border-color: rgba(255, 107, 107, 0.58);
+  color: var(--text);
+  background: rgba(255, 107, 107, 0.16);
+}
+
+.module-access-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
 .admin-settings-header {
   display: flex;
   align-items: flex-start;
@@ -2397,6 +2459,19 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .module-access-simulation-header {
+    display: block;
+  }
+
+  .module-access-simulation-header .status-pill,
+  .module-access-toggle {
+    margin-top: 12px;
+  }
+
+  .module-access-toggle {
+    width: 100%;
+  }
+
   .admin-settings-header,
   .admin-module-grid,
   .admin-module-card {
