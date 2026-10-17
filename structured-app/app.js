@@ -7,6 +7,7 @@ const SELECTED_PROJECT_KEY = "aquaHomes.selectedProjectName";
 const INVESTOR_VISIBILITY_KEY = "aquaHomes.aquabonaInvestorVisibility";
 const ACCOUNTING_REVIEW_KEY = "aquaHomes.accountingReview";
 const COMMAND_HISTORY_KEY = "aquaHomes.commandHistory";
+const MODULE_ACCESS_LOCK_KEY = "aquaHomes.moduleAccessLock";
 const MAX_RECENT_ACTIVITY = 10;
 const MAX_COMMAND_HISTORY = 12;
 const MODULE_STATUSES = ["active", "hidden", "locked"];
@@ -1340,6 +1341,9 @@ const clearActivity = document.querySelector("[data-clear-activity]");
 const cardGrid = document.querySelector("[data-module-grid]");
 const adminModuleList = document.querySelector("[data-admin-module-list]");
 const resetModuleSettings = document.querySelector("[data-reset-module-settings]");
+const moduleAccessSimulation = document.querySelector("[data-module-access-simulation]");
+const moduleAccessStatus = document.querySelector("[data-module-access-status]");
+const toggleModuleAccess = document.querySelector("[data-toggle-module-access]");
 const detailPanel = document.querySelector("[data-module-detail]");
 const detailTitle = document.querySelector("[data-module-title]");
 const detailDescription = document.querySelector("[data-module-description]");
@@ -1359,6 +1363,7 @@ let investorVisibility = loadInvestorVisibility();
 let accountingReview = loadAccountingReview();
 let moduleSettings = loadModuleSettings();
 let launchReadiness = loadLaunchReadiness();
+let moduleAccessLocked = readLocalStorage(MODULE_ACCESS_LOCK_KEY) === "true";
 let activeModule = null;
 let selectedProjectName = readLocalStorage(SELECTED_PROJECT_KEY);
 
@@ -3038,6 +3043,50 @@ function updateModuleSetting(moduleId, nextStatus) {
   }
 
   renderAdminModuleControl();
+  renderQuickAccess();
+  renderModules();
+}
+
+function renderModuleAccessSimulation() {
+  if (!moduleAccessSimulation || !moduleAccessStatus || !toggleModuleAccess) {
+    return;
+  }
+
+  moduleAccessSimulation.classList.toggle("is-locked", moduleAccessLocked);
+  moduleAccessStatus.textContent = moduleAccessLocked
+    ? "Acesso bloqueado · simulação"
+    : "Acesso liberado · simulação";
+  toggleModuleAccess.textContent = moduleAccessLocked
+    ? "Retomar acessos dos módulos"
+    : "Pausar módulos e bloquear novos acessos";
+  toggleModuleAccess.setAttribute("aria-pressed", String(moduleAccessLocked));
+}
+
+function setModuleAccessLock(locked) {
+  if (moduleAccessLocked === locked) {
+    return;
+  }
+
+  moduleAccessLocked = locked;
+  writeLocalStorage(MODULE_ACCESS_LOCK_KEY, String(moduleAccessLocked));
+
+  if (moduleAccessLocked) {
+    closeModuleDetail();
+  }
+
+  recentActivity = [
+    {
+      id: `${Date.now()}-module-access-lock`,
+      module: "Simulação de acesso",
+      title: moduleAccessLocked ? "Módulos pausados" : "Acesso aos módulos retomado",
+      meta: `${moduleAccessLocked ? "Novos acessos bloqueados" : "Novos acessos liberados"} · somente nesta demonstração local`,
+      createdAt: new Date().toISOString(),
+    },
+    ...recentActivity,
+  ].slice(0, MAX_RECENT_ACTIVITY);
+  saveRecentActivity();
+  renderRecentActivity();
+  renderModuleAccessSimulation();
   renderQuickAccess();
   renderModules();
 }
@@ -5110,7 +5159,7 @@ function renderDemoModule(moduleId) {
 const openModuleDetail = (module, options = {}) => {
   const moduleId = getModuleId(module.name);
 
-  if (getModuleStatus(moduleId) !== "active") {
+  if (moduleAccessLocked || getModuleStatus(moduleId) !== "active") {
     return;
   }
 
@@ -5153,13 +5202,21 @@ function renderQuickAccess() {
     button.type = "button";
     button.className = "quick-access-button";
     button.dataset.moduleId = link.moduleId;
-    button.textContent = status === "locked" ? `${link.label} · Locked` : link.label;
-    button.disabled = status === "locked";
+    button.textContent = moduleAccessLocked
+      ? `${link.label} · Access blocked`
+      : status === "locked"
+        ? `${link.label} · Locked`
+        : link.label;
+    button.disabled = moduleAccessLocked || status === "locked";
     button.setAttribute(
       "aria-label",
-      status === "locked" ? `${link.label} module is locked` : `Open ${link.label}`,
+      moduleAccessLocked
+        ? `${link.label} access blocked by local simulation`
+        : status === "locked"
+          ? `${link.label} module is locked`
+          : `Open ${link.label}`,
     );
-    if (status === "locked") {
+    if (moduleAccessLocked || status === "locked") {
       button.classList.add("locked");
     } else {
       button.addEventListener("click", () =>
@@ -5196,17 +5253,20 @@ const renderModules = () => {
     card.type = "button";
     card.className = `brain-card ${moduleStatus}`;
     card.dataset.moduleId = moduleId;
-    card.disabled = moduleStatus === "locked";
+    card.disabled = moduleAccessLocked || moduleStatus === "locked";
     card.setAttribute(
       "aria-label",
-      moduleStatus === "locked"
-        ? `${module.name} module is locked by admin settings`
-        : `Open ${module.name} module`,
+      moduleAccessLocked
+        ? `${module.name} access blocked by local simulation`
+        : moduleStatus === "locked"
+          ? `${module.name} module is locked by admin settings`
+          : `Open ${module.name} module`,
     );
     card.innerHTML = `
       <span class="card-icon">${String(index + 1).padStart(2, "0")}</span>
       <span class="card-title">${module.name}</span>
       <span class="card-copy">${module.description}</span>
+      ${moduleAccessLocked ? '<span class="card-count locked-count">Access blocked · local simulation</span>' : ""}
       ${moduleStatus === "locked" ? '<span class="card-count locked-count">Locked by admin demo</span>' : ""}
       ${demoCount ? `<span class="card-count">${demoCount} demo saved</span>` : ""}
     `;
@@ -5237,6 +5297,9 @@ navButtons.forEach((button) => {
   });
 });
 
+toggleModuleAccess.addEventListener("click", () =>
+  setModuleAccessLock(!moduleAccessLocked),
+);
 detailClose.addEventListener("click", closeModuleDetail);
 exportDemoData.addEventListener("click", exportDemoDataAsJson);
 importDemoData.addEventListener("click", importDemoDataFromJson);
@@ -5247,6 +5310,16 @@ refreshInsights.addEventListener("click", refreshAiInsights);
 resetModuleSettings.addEventListener("click", resetAllModuleSettings);
 
 window.addEventListener("storage", (event) => {
+  if (event.key === MODULE_ACCESS_LOCK_KEY) {
+    moduleAccessLocked = event.newValue === "true";
+    if (moduleAccessLocked) {
+      closeModuleDetail();
+    }
+    renderModuleAccessSimulation();
+    renderQuickAccess();
+    renderModules();
+  }
+
   if (event.key === DEMO_DATA_KEY) {
     demoData = loadDemoData();
     refreshDemoViews();
@@ -5305,6 +5378,7 @@ window.addEventListener("storage", (event) => {
 renderRecentActivity();
 renderLaunchReadiness();
 renderAdminModuleControl();
+renderModuleAccessSimulation();
 renderQuickAccess();
 renderModules();
 
